@@ -34,10 +34,12 @@ function renderTutorChat(){
  <input id="chatTopic" placeholder="Topic e.g. Effective stress">
  <textarea id="chatQuestion" placeholder="Write your question..."></textarea>
  <label class="image-upload">📷 Upload question image<input id="chatImage" type="file" accept="image/*"></label>
- <button id="chatSend">Ask AI</button></div><div id="chatReply"></div></div>`;
+ <div class="voice-row"><button id="voiceTalk" type="button">🎙️ Talk to AI</button><span id="voiceStatus">Voice off</span></div><button id="chatSend">Ask AI</button></div><div id="chatReply"></div></div>`;
  document.querySelector("#chatSend").onclick=askAI;
+ document.querySelector("#voiceTalk").onclick=toggleVoiceTutor;
+ setupVoiceTutor();
 }
-async function askAI(){
+async function askAI(fromVoice=false){
  const reply=document.querySelector("#chatReply"); reply.innerHTML="<div class='chat-loading'>Thinking…</div>";
  const subject=document.querySelector("#chatSubject").value;
  const topic=document.querySelector("#chatTopic").value;
@@ -56,6 +58,21 @@ async function askAI(){
   const box=document.createElement("div"); box.className="chat-answer";
   const title=document.createElement("b"); title.textContent=x.answer ? "🤖 AI Tutor" : "⚠️ AI Tutor";
   const pre=document.createElement("pre"); pre.textContent=x.answer||x.error||"No response received.";
-  box.appendChild(title); box.appendChild(pre); reply.replaceChildren(box);
+  box.appendChild(title); box.appendChild(pre); reply.replaceChildren(box); if(x.answer && fromVoice) speakAI(x.answer);
  }catch(e){reply.innerHTML="<p>Start the backend and try again.</p>";}
 }
+
+let voiceRecognition=null, voiceActive=false;
+function setupVoiceTutor(){
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ const btn=document.querySelector("#voiceTalk"), status=document.querySelector("#voiceStatus");
+ if(!btn||!status)return;
+ if(!SpeechRecognition){btn.disabled=true;status.textContent="Voice input is not supported";return;}
+ voiceRecognition=new SpeechRecognition(); voiceRecognition.lang="en-IN"; voiceRecognition.continuous=false; voiceRecognition.interimResults=true;
+ voiceRecognition.onstart=()=>{voiceActive=true;btn.classList.add("voice-active");status.textContent="Listening…";};
+ voiceRecognition.onresult=e=>{let text="";for(let i=e.resultIndex;i<e.results.length;i++)text+=e.results[i][0].transcript;document.querySelector("#chatQuestion").value=text;if(e.results[e.results.length-1].isFinal){status.textContent="Asking AI…";askAI(true);}};
+ voiceRecognition.onerror=e=>{voiceActive=false;btn.classList.remove("voice-active");status.textContent=e.error==="not-allowed"?"Microphone permission denied":"Voice input error";};
+ voiceRecognition.onend=()=>{voiceActive=false;btn.classList.remove("voice-active");};
+}
+function toggleVoiceTutor(){if(!voiceRecognition)return;if(voiceActive){voiceRecognition.stop();return;}window.speechSynthesis.cancel();voiceRecognition.start();}
+function speakAI(text){if(!("speechSynthesis" in window)||!text)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text.replace(/[*#_`]/g," "));u.lang="en-IN";u.rate=.95;u.onstart=()=>{const s=document.querySelector("#voiceStatus");if(s)s.textContent="AI is speaking…";};u.onend=()=>{const s=document.querySelector("#voiceStatus");if(s)s.textContent="Voice ready";};window.speechSynthesis.speak(u);}
