@@ -33,23 +33,29 @@ function renderTutorChat(){
  <select id="chatSubject">${["Engineering Mechanics","Strength of Material","Structural Analysis","Construction Management and Management","Estimation Costing and Valuation","RCC","Steel","Survey","Soil","Fluid Mechanics","Hydraulics","Hydrology","Irrigation","Environmental Engineering","Transportation Engineering"].map(s=>`<option>${s}</option>`).join("")}</select>
  <input id="chatTopic" placeholder="Topic e.g. Effective stress">
  <textarea id="chatQuestion" placeholder="Write your question..."></textarea>
+ <label class="image-upload">📷 Upload question image<input id="chatImage" type="file" accept="image/*"></label>
  <button id="chatSend">Ask AI</button></div><div id="chatReply"></div></div>`;
  document.querySelector("#chatSend").onclick=askAI;
 }
 async function askAI(){
  const reply=document.querySelector("#chatReply"); reply.innerHTML="<div class='chat-loading'>Thinking…</div>";
- const body={subject:document.querySelector("#chatSubject").value,topic:document.querySelector("#chatTopic").value,question:document.querySelector("#chatQuestion").value};
+ const subject=document.querySelector("#chatSubject").value;
+ const topic=document.querySelector("#chatTopic").value;
+ const question=document.querySelector("#chatQuestion").value;
+ const image=document.querySelector("#chatImage").files[0];
  try{
-  const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  let r;
+  if(image){
+   const form=new FormData();
+   form.append("subject",subject); form.append("topic",topic); form.append("question",question); form.append("image",image);
+   r=await fetch("/api/chat/image",{method:"POST",body:form});
+  }else{
+   r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,topic,question})});
+  }
   const x=await r.json();
-  const box=document.createElement("div");
-  box.className="chat-answer";
-  const title=document.createElement("b");
-  title.textContent=x.answer ? "🤖 AI Tutor" : "⚠️ AI Tutor";
-  const pre=document.createElement("pre");
-  pre.textContent=x.answer||x.error||"No response received.";
-  box.appendChild(title);
-  box.appendChild(pre);
-  reply.replaceChildren(box);
-}catch(e){reply.innerHTML="<p>Start the backend and try again.</p>";}
+  const box=document.createElement("div"); box.className="chat-answer";
+  const title=document.createElement("b"); title.textContent=x.answer ? "🤖 AI Tutor" : "⚠️ AI Tutor";
+  const pre=document.createElement("pre"); pre.textContent=x.answer||x.error||"No response received.";
+  box.appendChild(title); box.appendChild(pre); reply.replaceChildren(box);
+ }catch(e){reply.innerHTML="<p>Start the backend and try again.</p>";}
 }
