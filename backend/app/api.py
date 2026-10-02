@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel, Field
 from .subjects import SUBJECTS
 from .question_engine import build_blueprint
@@ -8,7 +8,7 @@ from .topic_bank import SUBJECT_TOPICS
 from .mock_config import get_mock_config
 from .performance import performance_profile
 from .diagram_engine import diagram_blueprint
-from .llm import llm_status, build_civil_prompt, generate_tutor_answer
+from .llm import llm_status, build_civil_prompt, generate_tutor_answer, generate_tutor_image_answer
 from .mock_engine import calculate_result
 
 router = APIRouter(prefix="/api")
@@ -59,6 +59,29 @@ def chat(req: TutorRequest):
             "error": "The AI service could not answer right now. Check your Gemini API key and try again.",
             "mode": "provider_error",
         }
+
+@router.post("/chat/image")
+async def chat_image(
+    subject: str,
+    topic: str = "",
+    question: str = "",
+    image: UploadFile = File(...),
+):
+    if subject not in SUBJECTS:
+        return {"error": "Unknown subject", "subjects": SUBJECTS}
+    if not image.content_type or not image.content_type.startswith("image/"):
+        return {"error": "Please upload an image file."}
+    data = await image.read()
+    if len(data) > 10 * 1024 * 1024:
+        return {"error": "Image is too large. Please use an image under 10 MB."}
+    try:
+        answer = generate_tutor_image_answer(subject, topic, question, data, image.content_type)
+        return {"answer": answer, "mode": "gemini-vision", "provider": "gemini"}
+    except RuntimeError as exc:
+        return {"error": str(exc), "mode": "configuration_error"}
+    except Exception:
+        return {"error": "The AI service could not analyze this image right now.", "mode": "provider_error"}
+
 
 @router.post("/questions/generate")
 def generate(req: QuestionRequest):
