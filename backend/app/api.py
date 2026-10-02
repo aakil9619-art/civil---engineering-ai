@@ -8,7 +8,7 @@ from .topic_bank import SUBJECT_TOPICS
 from .mock_config import get_mock_config
 from .performance import performance_profile
 from .diagram_engine import diagram_blueprint
-from .llm import llm_status, build_civil_prompt
+from .llm import llm_status, build_civil_prompt, generate_tutor_answer
 from .mock_engine import calculate_result
 
 router = APIRouter(prefix="/api")
@@ -47,8 +47,18 @@ def tutor(req: TutorRequest):
 def chat(req: TutorRequest):
     if req.subject not in SUBJECTS:
         return {"error": "Unknown subject", "subjects": SUBJECTS}
-    prompt = tutor_prompt(req.subject, req.topic, req.question)
-    return {"answer": prompt, "mode": "brief_exam_help"}
+    if not req.question.strip():
+        return {"error": "Please enter a question."}
+    try:
+        answer = generate_tutor_answer(req.subject, req.topic, req.question)
+        return {"answer": answer, "mode": "gemini", "provider": "gemini"}
+    except RuntimeError as exc:
+        return {"error": str(exc), "mode": "configuration_error"}
+    except Exception:
+        return {
+            "error": "The AI service could not answer right now. Check your Gemini API key and try again.",
+            "mode": "provider_error",
+        }
 
 @router.post("/questions/generate")
 def generate(req: QuestionRequest):
