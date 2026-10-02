@@ -43,6 +43,13 @@ def tutor(req: TutorRequest):
         return {"error": "Unknown subject", "subjects": SUBJECTS}
     return {"prompt": tutor_prompt(req.subject, req.topic, req.question)}
 
+@router.post("/chat")
+def chat(req: TutorRequest):
+    if req.subject not in SUBJECTS:
+        return {"error": "Unknown subject", "subjects": SUBJECTS}
+    prompt = tutor_prompt(req.subject, req.topic, req.question)
+    return {"answer": prompt, "mode": "brief_exam_help"}
+
 @router.post("/questions/generate")
 def generate(req: QuestionRequest):
     if req.subject not in SUBJECTS:
