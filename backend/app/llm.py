@@ -57,3 +57,34 @@ def generate_tutor_answer(subject: str, topic: str, user_question: str) -> str:
     if not text:
         raise RuntimeError("Gemini returned an empty response")
     return text.strip()
+
+
+def generate_tutor_image_answer(subject: str, topic: str, user_question: str, image_bytes: bytes, mime_type: str) -> str:
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+
+    import base64
+    from google import genai
+
+    client = genai.Client(api_key=api_key)
+    prompt = build_tutor_prompt(subject, topic, user_question) + """
+
+A question image is attached. Read all visible text, equations, tables and Civil Engineering diagrams.
+Solve the exact question shown. If it is multiple-choice:
+- identify the correct option;
+- briefly explain why it is correct;
+- briefly identify the key reason the other options are wrong when possible.
+Do not guess unreadable values. State what is unclear and make only clearly stated assumptions.
+"""
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=[
+            prompt,
+            {"inline_data": {"mime_type": mime_type, "data": base64.b64encode(image_bytes).decode("utf-8")}},
+        ],
+    )
+    text = getattr(response, "text", None)
+    if not text:
+        raise RuntimeError("Gemini returned an empty response")
+    return text.strip()
