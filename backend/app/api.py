@@ -29,6 +29,9 @@ class QuestionRequest(BaseModel):
 class MockAnswer(BaseModel):
     is_correct: bool
     time_seconds: float = 0
+    topic: str = ""
+    selected_option: str = ""
+    marked_for_review: bool = False
 
 class MockRequest(BaseModel):
     total: int
