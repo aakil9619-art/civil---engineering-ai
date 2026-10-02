@@ -3,7 +3,7 @@ const descriptions={tutor:'Ask a Civil Engineering concept question.',questions:
 const contentBox=document.querySelector('#content');
 document.querySelectorAll('.card').forEach(card=>card.addEventListener('click',()=>{
  const mode=card.dataset.mode; document.querySelector('#panel-title').textContent=titles[mode];
- if(mode==='questions') renderQuestionGenerator(); else if(mode==='mock') renderDashboard();
+ if(mode==='questions') renderQuestionGenerator(); else if(mode==='mock') renderDashboard(); else if(mode==='tutor') renderTutorChat();
  else contentBox.innerHTML='<p>'+descriptions[mode]+'</p><p><b>Built for:</b> SSC JE 2026 • GATE CE • AE/JE</p>';
 }));
 function renderQuestionGenerator(){
@@ -26,3 +26,18 @@ async function generate(){
  document.querySelector('#results').innerHTML=qs.map((q,i)=>`<article class="question"><h3>Q${i+1}. ${q.question}</h3><ol type="A">${q.options.map(o=>'<li>'+o+'</li>').join('')}</ol><details><summary>Show solution</summary><p><b>Answer:</b> ${q.answer}</p><p>${q.solution}</p><p><b>Formula:</b> ${q.formula}</p><p><b>Concept:</b> ${q.concept}</p><p><b>Trap:</b> ${q.common_trap}</p><p><b>Tip:</b> ${q.exam_tip}</p></details></article>`).join('');
 }
 fetch('/api/ai/status').then(r=>r.json()).then(x=>{document.querySelector('#status').textContent='Backend connected • AI provider: '+x.provider+' • configured: '+x.provider_configured}).catch(()=>document.querySelector('#status').textContent='Start the FastAPI backend to connect the dashboard.');
+function renderTutorChat(){
+ contentBox.innerHTML=`<div class="chat-box">
+ <div class="chat-intro"><h3>🤖 Civil AI Chat</h3><p>Ask doubts about concepts, formulas, numericals or how to approach an exam question. Answers are kept brief and exam-focused.</p></div>
+ <div class="chat-form">
+ <select id="chatSubject">${["Engineering Mechanics","Strength of Material","Structural Analysis","Construction Management and Management","Estimation Costing and Valuation","RCC","Steel","Survey","Soil","Fluid Mechanics","Hydraulics","Hydrology","Irrigation","Environmental Engineering","Transportation Engineering"].map(s=>`<option>${s}</option>`).join("")}</select>
+ <input id="chatTopic" placeholder="Topic e.g. Effective stress">
+ <textarea id="chatQuestion" placeholder="Write your question..."></textarea>
+ <button id="chatSend">Ask AI</button></div><div id="chatReply"></div></div>`;
+ document.querySelector("#chatSend").onclick=askAI;
+}
+async function askAI(){
+ const reply=document.querySelector("#chatReply"); reply.innerHTML="<div class='chat-loading'>Thinking…</div>";
+ const body={subject:document.querySelector("#chatSubject").value,topic:document.querySelector("#chatTopic").value,question:document.querySelector("#chatQuestion").value};
+ try{const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const x=await r.json();reply.innerHTML=`<div class="chat-answer"><b>AI Tutor</b><pre>${x.answer||x.error}</pre><small>Tip: For the final product, connect an LLM provider to turn this tutor prompt into a real generated answer.</small></div>`;}catch(e){reply.innerHTML="<p>Start the backend and try again.</p>";}
+}
