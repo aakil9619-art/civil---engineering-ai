@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from .subjects import SUBJECTS
 from .question_engine import build_blueprint
+from .question_generator import generate_questions
 from .tutor import tutor_prompt
 from .mock_engine import calculate_result
 
@@ -33,6 +34,12 @@ def tutor(req: TutorRequest):
     if req.subject not in SUBJECTS:
         return {"error": "Unknown subject", "subjects": SUBJECTS}
     return {"prompt": tutor_prompt(req.subject, req.topic, req.question)}
+
+@router.post("/questions/generate")
+def generate(req: QuestionRequest):
+    if req.subject not in SUBJECTS:
+        return {"error": "Unknown subject", "subjects": SUBJECTS}
+    return {"questions": generate_questions(req.exam, req.subject, req.topic, req.difficulty, req.question_type, req.count)}
 
 @router.post("/questions/blueprint")
 def question_blueprint(req: QuestionRequest):
