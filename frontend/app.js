@@ -25,3 +25,4 @@ async function generate(){
  const data=await r.json(), qs=data.questions||[];
  document.querySelector('#results').innerHTML=qs.map((q,i)=>`<article class="question"><h3>Q${i+1}. ${q.question}</h3><ol type="A">${q.options.map(o=>'<li>'+o+'</li>').join('')}</ol><details><summary>Show solution</summary><p><b>Answer:</b> ${q.answer}</p><p>${q.solution}</p><p><b>Formula:</b> ${q.formula}</p><p><b>Concept:</b> ${q.concept}</p><p><b>Trap:</b> ${q.common_trap}</p><p><b>Tip:</b> ${q.exam_tip}</p></details></article>`).join('');
 }
+fetch('/api/ai/status').then(r=>r.json()).then(x=>{document.querySelector('#status').textContent='Backend connected • AI provider: '+x.provider+' • configured: '+x.provider_configured}).catch(()=>document.querySelector('#status').textContent='Start the FastAPI backend to connect the dashboard.');
