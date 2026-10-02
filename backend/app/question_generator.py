@@ -1,4 +1,5 @@
 from dataclasses import dataclass, asdict
+from .seed_bank import generate_seed_questions
 from typing import Literal
 import random
 
@@ -36,5 +37,8 @@ def generate_questions(exam: str, subject: str, topic: str="", difficulty: str="
                        question_type: str="numerical", count: int=5) -> list[dict]:
     # Seed content is deliberately original and is used as a deterministic fallback.
     # Future LLM/RAG providers can replace this function without changing the API schema.
+    seeded = generate_seed_questions(subject, topic, difficulty, question_type, count)
+    if seeded:
+        return seeded
     templates = [_sample_som(subject, topic, difficulty, question_type)]
     return [asdict(templates[i % len(templates)]) for i in range(count)]
