@@ -9,7 +9,7 @@ from .mock_config import get_mock_config
 from .performance import performance_profile
 from .diagram_engine import diagram_blueprint
 from .llm import llm_status, build_civil_prompt
-from .mock_engine import calculate_result, analyze_topics
+from .mock_engine import calculate_result
 
 router = APIRouter(prefix="/api")
 
