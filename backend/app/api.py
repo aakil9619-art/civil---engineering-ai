@@ -10,6 +10,7 @@ from .performance import performance_profile
 from .diagram_engine import diagram_blueprint
 from .llm import llm_status, build_civil_prompt, generate_tutor_answer, generate_tutor_image_answer
 from .mock_engine import calculate_result
+from .mixed_mock import build_mixed_mock
 
 router = APIRouter(prefix="/api")
 
@@ -107,7 +108,7 @@ def topics(subject: str = ""):
 @router.get("/mock/config")
 def mock_config(exam: str = "SSC JE 2026"):
     c = get_mock_config(exam)
-    return {"exam": c.exam, "total_questions": c.total_questions, "duration_minutes": c.duration_minutes, "sections": c.sections}
+    return {"exam": c.exam, "total_questions": c.total_questions, "duration_minutes": c.duration_minutes, "sections": c.sections, "negative_marking": c.negative_marking}
 
 @router.post("/performance")
 def performance(req: MockRequest):
@@ -125,3 +126,13 @@ def ai_status():
 @router.get("/ai/prompt")
 def ai_prompt(exam: str, subject: str, topic: str, difficulty: str="moderate", question_type: str="numerical"):
     return {"prompt": build_civil_prompt(exam, subject, topic, difficulty, question_type)}
+
+
+@router.get("/mock/questions")
+def mixed_mock_questions(exam: str = "SSC JE 2026", technical: int = 100, reasoning: int = 50, gk: int = 50):
+    if exam != "SSC JE 2026":
+        return {"error": "This mixed simulator currently supports SSC JE 2026 Paper-I."}
+    if technical < 1 or reasoning < 1 or gk < 1 or technical > 100 or reasoning > 50 or gk > 50:
+        return {"error": "Use Technical 1-100, Reasoning 1-50 and GK 1-50."}
+    questions = build_mixed_mock(technical, reasoning, gk)
+    return {"exam": exam, "questions": questions, "negative_marking": 0.25, "duration_minutes": 120}
