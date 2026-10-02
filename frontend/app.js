@@ -39,5 +39,17 @@ function renderTutorChat(){
 async function askAI(){
  const reply=document.querySelector("#chatReply"); reply.innerHTML="<div class='chat-loading'>Thinking…</div>";
  const body={subject:document.querySelector("#chatSubject").value,topic:document.querySelector("#chatTopic").value,question:document.querySelector("#chatQuestion").value};
- try{const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const x=await r.json();reply.innerHTML=`<div class="chat-answer"><b>AI Tutor</b><pre>${x.answer||x.error}</pre><small>Tip: For the final product, connect an LLM provider to turn this tutor prompt into a real generated answer.</small></div>`;}catch(e){reply.innerHTML="<p>Start the backend and try again.</p>";}
+ try{
+  const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const x=await r.json();
+  const box=document.createElement("div");
+  box.className="chat-answer";
+  const title=document.createElement("b");
+  title.textContent=x.answer ? "🤖 AI Tutor" : "⚠️ AI Tutor";
+  const pre=document.createElement("pre");
+  pre.textContent=x.answer||x.error||"No response received.";
+  box.appendChild(title);
+  box.appendChild(pre);
+  reply.replaceChildren(box);
+}catch(e){reply.innerHTML="<p>Start the backend and try again.</p>";}
 }
