@@ -3,7 +3,7 @@ const descriptions={tutor:'Ask a Civil Engineering concept question.',questions:
 const contentBox=document.querySelector('#content');
 document.querySelectorAll('.card').forEach(card=>card.addEventListener('click',()=>{
  const mode=card.dataset.mode; document.querySelector('#panel-title').textContent=titles[mode];
- if(mode==='questions') renderQuestionGenerator();
+ if(mode==='questions') renderQuestionGenerator(); else if(mode==='mock') renderDashboard();
  else contentBox.innerHTML='<p>'+descriptions[mode]+'</p><p><b>Built for:</b> SSC JE 2026 • GATE CE • AE/JE</p>';
 }));
 function renderQuestionGenerator(){
