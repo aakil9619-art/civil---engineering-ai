@@ -4,7 +4,12 @@ from .subjects import SUBJECTS
 from .question_engine import build_blueprint
 from .question_generator import generate_questions
 from .tutor import tutor_prompt
-from .mock_engine import calculate_result
+from .topic_bank import SUBJECT_TOPICS
+from .mock_config import get_mock_config
+from .performance import performance_profile
+from .diagram_engine import diagram_blueprint
+from .llm import llm_status, build_civil_prompt
+from .mock_engine import calculate_result, analyze_topics
 
 router = APIRouter(prefix="/api")
 
@@ -51,3 +56,29 @@ def question_blueprint(req: QuestionRequest):
 def mock_result(req: MockRequest):
     result = calculate_result(req.total, [a.model_dump() for a in req.answers])
     return result.__dict__
+
+@router.get("/topics")
+def topics(subject: str = ""):
+    return {"subject": subject, "topics": SUBJECT_TOPICS.get(subject, [])} if subject else {"subjects": SUBJECT_TOPICS}
+
+@router.get("/mock/config")
+def mock_config(exam: str = "SSC JE 2026"):
+    c = get_mock_config(exam)
+    return {"exam": c.exam, "total_questions": c.total_questions, "duration_minutes": c.duration_minutes, "sections": c.sections}
+
+@router.post("/performance")
+def performance(req: MockRequest):
+    answers = [a.model_dump() for a in req.answers]
+    return {"profile": performance_profile(answers), "summary": calculate_result(req.total, answers).__dict__}
+
+@router.get("/diagram")
+def diagram(subject: str, topic: str):
+    return diagram_blueprint(subject, topic)
+
+@router.get("/ai/status")
+def ai_status():
+    return llm_status()
+
+@router.get("/ai/prompt")
+def ai_prompt(exam: str, subject: str, topic: str, difficulty: str="moderate", question_type: str="numerical"):
+    return {"prompt": build_civil_prompt(exam, subject, topic, difficulty, question_type)}
