@@ -365,7 +365,7 @@ def auth_me(authorization: str = Header(default="")):
     user=verify_bearer(authorization)
     uid=user["uid"]
     sid=uid
-    ensure_student(sid, user.get("name",""), "", uid)
+    ensure_student(sid, user.get("name",""), "")
     return {"uid":uid,"phone":user.get("phone_number",""),"name":user.get("name",""),"student_id":sid}
 
 @router.post("/workspace/student")
