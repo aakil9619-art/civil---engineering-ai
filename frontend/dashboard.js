@@ -88,3 +88,52 @@ async function startMixed(){
  const timer=setInterval(()=>{const el=document.querySelector("#timer");if(!el){clearInterval(timer);return}const left=remaining();el.textContent=fmt(left);if(left<=0){clearInterval(timer);finish(true);}},1000);
 }
 window.renderDashboard=renderDashboard;
+
+/* Student OS dashboard — authenticated home workspace */
+function renderStudentDashboard(){
+  const root=document.querySelector("#content");
+  if(!root)return;
+  if(!CivilAuth.user){
+    root.innerHTML='<div class="workspace-empty"><div class="workspace-icon">🔐</div><h3>Your engineering workspace</h3><p>Login with OTP to save mock history, projects, research, bookmarks and learning progress.</p><button class="primary" id="workspaceLogin">📱 Login with OTP</button></div>';
+    document.querySelector("#workspaceLogin").onclick=()=>CivilAuth.open();
+    return;
+  }
+  root.innerHTML='<div class="student-os"><div class="os-hero"><div><span class="os-eyebrow">PERSONAL ENGINEERING WORKSPACE</span><h3 id="osGreeting">Good to see you back.</h3><p id="osSub">Your study, project and research activity in one place.</p></div><button id="osRefresh" class="os-refresh">↻ Refresh</button></div><div class="os-kpis"><article><span>Latest Mock</span><b id="kpiScore">—</b><small id="kpiScoreMeta">No attempt yet</small></article><article><span>Accuracy</span><b id="kpiAccuracy">—</b><small id="kpiAccuracyMeta">Build your history</small></article><article><span>Questions Attempted</span><b id="kpiQuestions">0</b><small>Across saved mocks</small></article><article><span>Weak Areas</span><b id="kpiWeak">—</b><small>Based on recent accuracy</small></article></div><div class="os-grid"><section class="os-main"><article class="os-card next-action"><div class="os-card-head"><div><span class="os-label">NEXT BEST ACTION</span><h4 id="nextTitle">Start your first mock</h4></div><span class="action-dot">●</span></div><p id="nextText">Take a timed SSC JE Paper-I mock to establish your baseline and unlock personalized recommendations.</p><div class="os-actions"><button id="nextAction" class="primary">🎯 Open Exam Center</button><button id="aiAction">🤖 Ask AI Tutor</button></div></article><article class="os-card"><div class="os-card-head"><div><span class="os-label">TODAY'S PLAN</span><h4>Four focused blocks</h4></div><span class="plan-score" id="planProgress">0/4</span></div><div class="study-plan" id="studyPlan"></div></article><article class="os-card"><div class="os-card-head"><div><span class="os-label">MOCK HISTORY</span><h4>Recent performance</h4></div><button id="openMock">View mock center</button></div><div id="osMocks" class="os-list"></div></article></section><aside class="os-side"><article class="os-card"><div class="os-card-head"><div><span class="os-label">WEAK SUBJECTS</span><h4>Where to improve</h4></div></div><div id="weakSubjects"></div></article><article class="os-card"><div class="os-card-head"><div><span class="os-label">YOUR WORK</span><h4>Projects & research</h4></div></div><div class="mini-stats"><div><b id="projectCount">0</b><span>Projects</span></div><div><b id="researchCount">0</b><span>Research</span></div><div><b id="bookmarkCount">0</b><span>Bookmarks</span></div></div><div class="quick-save"><input id="quickProject" placeholder="Save a project idea"><button id="saveProject">＋</button><input id="quickResearch" placeholder="Save a research topic"><button id="saveResearch">＋</button></div></article><article class="os-card"><div class="os-card-head"><div><span class="os-label">SAVED ITEMS</span><h4>Latest workspace activity</h4></div></div><div id="osSaved" class="os-list"></div></article></aside></div></div>';
+  const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[m]));
+  const runMode=mode=>{const card=document.querySelector('.card[data-mode="'+mode+'"]');if(card)card.click();};
+  document.querySelector("#nextAction").onclick=()=>runMode("mock");
+  document.querySelector("#openMock").onclick=()=>runMode("mock");
+  document.querySelector("#aiAction").onclick=()=>runMode("tutor");
+  document.querySelector("#osRefresh").onclick=loadWorkspace;
+  const plan=[["Technical revision","Revise one weak Civil subject + 20 focused questions."],["Reasoning sprint","25 timed reasoning questions. Prioritize accuracy."],["GK / current affairs","30 minutes of static + current affairs revision."],["Mini mock","Attempt a timed mixed set and review every mistake."]];
+  const state=plan.map(()=>false);
+  function paintPlan(){const done=state.filter(Boolean).length;document.querySelector("#planProgress").textContent=done+"/4";document.querySelector("#studyPlan").innerHTML=plan.map((p,i)=>'<label class="plan-item '+(state[i]?"done":"")+'"><input type="checkbox" data-plan="'+i+'" '+(state[i]?"checked":"")+'><span><b>'+esc(p[0])+'</b><small>'+esc(p[1])+'</small></span></label>').join("");document.querySelectorAll("[data-plan]").forEach(x=>x.onchange=()=>{state[Number(x.dataset.plan)]=x.checked;paintPlan();});}
+  paintPlan();
+  async function loadWorkspace(){
+    try{
+      const r=await authFetch("/api/workspace");if(!r.ok)throw new Error("workspace "+r.status);
+      const x=await r.json(),mocks=x.mock_history||[],projects=x.projects||[],research=x.research||[],bookmarks=x.bookmarks||[];
+      const name=x.student?.name||CivilAuth.user.displayName||"Student";
+      document.querySelector("#osGreeting").textContent="Good to see you, "+name+".";
+      document.querySelector("#osSub").textContent="Your Civil Engineering workspace is ready. Keep the next block focused.";
+      document.querySelector("#kpiQuestions").textContent=mocks.reduce((n,m)=>n+Number(m.attempted||0),0).toLocaleString("en-IN");
+      document.querySelector("#projectCount").textContent=projects.length;document.querySelector("#researchCount").textContent=research.length;document.querySelector("#bookmarkCount").textContent=bookmarks.length;
+      if(mocks.length){
+        const latest=mocks[0];document.querySelector("#kpiScore").textContent=Number(latest.score).toFixed(2);document.querySelector("#kpiScoreMeta").textContent=latest.exam+" • "+new Date(latest.created_at).toLocaleDateString("en-IN");
+        document.querySelector("#kpiAccuracy").textContent=Number(latest.accuracy).toFixed(1)+"%";document.querySelector("#kpiAccuracyMeta").textContent=Number(latest.attempted||0)+"/"+Number(latest.total||0)+" attempted";
+        document.querySelector("#kpiWeak").textContent=Number(latest.accuracy)<70?"Accuracy needs work":"Keep building consistency";
+        document.querySelector("#nextTitle").textContent=Number(latest.accuracy)<70?"Review mistakes before the next mock":"Push your score higher";
+        document.querySelector("#nextText").textContent=Number(latest.accuracy)<70?"Your latest accuracy is below 70%. Review wrong questions, then retake a focused mini mock.":"Your latest attempt is solid. Target the weakest section and take another timed set.";
+        document.querySelector("#osMocks").innerHTML=mocks.slice(0,5).map(m=>'<div class="os-row"><div><b>'+esc(m.exam)+'</b><small>'+new Date(m.created_at).toLocaleDateString("en-IN")+' • '+Number(m.attempted||0)+'/'+Number(m.total||0)+' attempted</small></div><strong>'+Number(m.score).toFixed(2)+' <em>'+Number(m.accuracy).toFixed(1)+'%</em></strong></div>').join("");
+      }else{document.querySelector("#kpiWeak").textContent="Start testing";document.querySelector("#osMocks").innerHTML='<div class="workspace-empty compact"><p>No mock history yet. Your first timed attempt will unlock exam intelligence.</p></div>';}
+      const progress=(x.progress||[]).filter(p=>Number.isFinite(Number(p.value))).sort((a,b)=>Number(a.value)-Number(b.value)).slice(0,5);
+      document.querySelector("#weakSubjects").innerHTML=progress.length?progress.map(p=>'<div class="weak-row"><div><b>'+esc(p.key)+'</b><span>'+Number(p.value).toFixed(0)+'%</span></div><div class="weak-bar"><i style="width:'+Math.max(0,Math.min(100,Number(p.value)))+'%"></i></div></div>').join(""):'<p class="muted">Subject progress will appear as you study.</p>';
+      const saved=[...projects.slice(0,2).map(p=>({label:"🎓 "+p.title,meta:p.status})),...research.slice(0,2).map(p=>({label:"🔬 "+p.topic,meta:p.status})),...bookmarks.slice(0,2).map(p=>({label:"🔖 "+p.title,meta:p.kind}))];
+      document.querySelector("#osSaved").innerHTML=saved.length?saved.slice(0,6).map(v=>'<div class="os-row"><div><b>'+esc(v.label)+'</b><small>'+esc(v.meta||"Saved")+'</small></div></div>').join(""):'<p class="muted">Nothing saved yet. Start with a project, research topic or bookmark.</p>';
+    }catch(e){document.querySelector("#osSub").textContent="Could not load your workspace. Please refresh after signing in again.";document.querySelector("#nextText").textContent="Your secure workspace connection is unavailable right now.";}
+  }
+  document.querySelector("#saveProject").onclick=async()=>{const v=document.querySelector("#quickProject").value.trim();if(!v)return;await authFetch("/api/workspace/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({student_id:"ignored",title:v})});document.querySelector("#quickProject").value="";loadWorkspace();};
+  document.querySelector("#saveResearch").onclick=async()=>{const v=document.querySelector("#quickResearch").value.trim();if(!v)return;await authFetch("/api/workspace/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({student_id:"ignored",topic:v})});document.querySelector("#quickResearch").value="";loadWorkspace();};
+  loadWorkspace();
+}
+window.addEventListener("civil-auth-ready",()=>{if(location.hash==="#workspace"&&CivilAuth.user)renderStudentDashboard();});
