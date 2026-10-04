@@ -375,8 +375,9 @@ def workspace_student(req: StudentRequest, authorization: str = Header(default="
     return student(sid)
 
 @router.get("/workspace")
-def workspace(student_id: str):
-    return list_workspace(student_id)
+def workspace(authorization: str = Header(default="")):
+    user=verify_bearer(authorization)
+    return list_workspace(user["uid"])
 
 @router.post("/workspace/projects")
 def workspace_project(req: ProjectSaveRequest, authorization: str = Header(default="")):
