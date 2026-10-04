@@ -209,6 +209,72 @@ def global_updates(limit: int = 8):
     return result
 
 
+@router.get("/vacancies")
+def vacancies(limit: int = 30):
+    """Fresh recruitment/vacancy alerts for Civil Engineering and major JE/AE exams."""
+    limit=min(max(limit,5),40)
+    import datetime as dt
+    from email.utils import parsedate_to_datetime
+    queries=[
+        '"Junior Engineer" Civil recruitment vacancy India',
+        '"Assistant Engineer" Civil recruitment vacancy India',
+        '"Civil Engineer" recruitment government India',
+        'SSC JE recruitment notification',
+        'RRB JE Civil recruitment notification',
+        'HPPSC Civil Engineer recruitment',
+        'HPRCA JE Civil recruitment',
+        'UPSC Engineering Services Civil notification',
+        'CPWD Civil Engineer recruitment',
+        'NHAI Civil Engineer recruitment',
+        'NHPC Civil Engineer recruitment',
+        'BRO Civil Engineer recruitment'
+    ]
+    official_domains={
+        "SSC":"ssc.gov.in","UPSC":"upsc.gov.in","HPPSC":"hppsc.hp.gov.in",
+        "RRB":"indianrailways.gov.in","HPRCA":"hprca.hp.gov.in"
+    }
+    seen=set(); items=[]
+    today=dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()
+    import xml.etree.ElementTree as ET
+    for query in queries:
+        try:
+            rss_url="https://news.google.com/rss/search?q="+urllib.parse.quote(query)+"&hl=en-IN&gl=IN&ceid=IN:en"
+            req=urllib.request.Request(rss_url,headers={"User-Agent":"CivilEngineeringAI/1.0"})
+            with urllib.request.urlopen(req,timeout=8) as response:
+                root=ET.fromstring(response.read())
+            for item in root.findall("./channel/item")[:8]:
+                title=item.findtext("title") or ""
+                url=item.findtext("link") or ""
+                source=item.findtext("source") or "News"
+                pub=item.findtext("pubDate") or ""
+                if not title or not url: continue
+                key=(title.strip().lower(),url)
+                if key in seen: continue
+                seen.add(key)
+                try: published=parsedate_to_datetime(pub)
+                except Exception: published=None
+                local_date=published.astimezone(dt.timezone(dt.timedelta(hours=5,minutes=30))).date() if published else None
+                text=(title+" "+source).lower()
+                if not any(k in text for k in ["recruit","vacan","vacancy","notification","engineer","junior engineer","assistant engineer","apprentice"]): continue
+                authority=next((k for k,v in official_domains.items() if v in url or v in source.lower()),None)
+                items.append({"title":title,"url":url,"source":source,"publishedAt":pub,"date":str(local_date) if local_date else "","released_today":bool(local_date==today),"authority":authority or "Secondary source"})
+        except Exception:
+            continue
+    items.sort(key=lambda x:(x["released_today"],x["publishedAt"]),reverse=True)
+    return {
+        "updated_at":dt.datetime.now(dt.timezone.utc).isoformat(),
+        "today":str(today),
+        "same_day_alerts":[x for x in items if x["released_today"]][:limit],
+        "upcoming_or_active":[x for x in items if not x["released_today"]][:limit],
+        "official_sources":[
+            {"name":"SSC","url":"https://ssc.gov.in/"},
+            {"name":"UPSC","url":"https://www.upsc.gov.in/recruitment/recruitment-advertisement"},
+            {"name":"HPPSC","url":"https://hppsc.hp.gov.in/"},
+            {"name":"Indian Railways / RRB","url":"https://indianrailways.gov.in/"}
+        ],
+        "note":"Alerts are checked from public feeds. Same-day display depends on when the recruiting authority publishes a public notice/feed."
+    }
+
 @router.get("/diagnostics")
 def diagnostics():
     """Safe deployment diagnostics; never returns secret values."""
