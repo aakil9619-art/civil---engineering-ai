@@ -130,43 +130,70 @@ def mixed_mock_questions(exam: str = "SSC JE 2026", technical: int = 100, reason
 
 @router.get("/news")
 def news(limit: int = 12):
-    """Civil-engineering news feed. Uses GNews when GNEWS_API_KEY is configured."""
+    """Civil-engineering news. Prefer GNews when configured; fall back to Google News RSS."""
+    limit = min(max(limit, 1), 10)
     key = os.getenv("GNEWS_API_KEY", "").strip()
-    if not key:
-        return {"configured": False, "source": "GNews", "articles": [], "message": "Add GNEWS_API_KEY in Render Environment Variables."}
-    query = "civil engineering OR infrastructure OR highway OR bridge OR railway OR dam OR irrigation OR construction OR environment OR earthquake"
-    params = urllib.parse.urlencode({"q": query, "lang": "en", "country": "in", "max": min(max(limit, 1), 10), "apikey": key})
+    query = "civil engineering infrastructure highway bridge railway dam irrigation construction environment earthquake"
+    if key:
+        params = urllib.parse.urlencode({"q": query, "lang": "en", "country": "in", "max": limit, "apikey": key})
+        try:
+            req = urllib.request.Request("https://gnews.io/api/v4/search?" + params, headers={"User-Agent": "CivilEngineeringAI/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            articles = [{"title": a.get("title"), "url": a.get("url"), "source": (a.get("source") or {}).get("name"), "publishedAt": a.get("publishedAt")} for a in data.get("articles", [])]
+            if articles:
+                return {"configured": True, "source": "GNews", "articles": articles}
+        except Exception:
+            pass
     try:
-        req = urllib.request.Request("https://gnews.io/api/v4/search?" + params, headers={"User-Agent": "CivilEngineeringAI/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode("utf-8"))
-        articles = [{"title": a.get("title"), "url": a.get("url"), "source": (a.get("source") or {}).get("name"), "publishedAt": a.get("publishedAt")} for a in data.get("articles", [])]
-        return {"configured": True, "source": "GNews", "articles": articles}
-    except Exception:
-        return {"configured": True, "source": "GNews", "articles": [], "error": "News feed temporarily unavailable."}
+        rss_query = urllib.parse.quote(query + " India")
+        rss_url = "https://news.google.com/rss/search?q=" + rss_query + "&hl=en-IN&gl=IN&ceid=IN:en"
+        req = urllib.request.Request(rss_url, headers={"User-Agent": "CivilEngineeringAI/1.0"})
+        with urllib.request.urlopen(req, timeout=12) as response:
+            raw = response.read()
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(raw)
+        articles = []
+        for item in root.findall("./channel/item")[:limit]:
+            title = item.findtext("title") or "Untitled"
+            url = item.findtext("link") or ""
+            pub = item.findtext("pubDate") or ""
+            source = item.findtext("source") or "Google News"
+            articles.append({"title": title, "url": url, "source": source, "publishedAt": pub})
+        return {"configured": bool(key), "source": "GNews" if key else "Google News RSS", "articles": articles, "fallback": not bool(key)}
+    except Exception as exc:
+        return {"configured": bool(key), "source": "GNews" if key else "Google News RSS", "articles": [], "error": "News providers temporarily unavailable.", "detail": type(exc).__name__}
+
 
 @router.get("/global-updates")
 def global_updates(limit: int = 8):
     """Global engineering news + recent research + major project updates."""
     limit = min(max(limit, 1), 8)
-    result = {"news": [], "research": [], "projects": [], "sources": ["GNews", "OpenAlex"]}
+    result = {"news": [], "research": [], "projects": [], "sources": ["Google News RSS", "OpenAlex"]}
     key = os.getenv("GNEWS_API_KEY", "").strip()
     queries = {
         "news": "engineering invention innovation construction infrastructure technology robotics materials energy water transport",
         "projects": "major infrastructure project megaproject bridge tunnel railway metro airport dam construction project",
     }
-    if key:
-        for kind, query in queries.items():
-            try:
+    for kind, query in queries.items():
+        try:
+            if key:
                 params = urllib.parse.urlencode({"q": query, "lang": "en", "max": limit, "apikey": key})
                 req = urllib.request.Request("https://gnews.io/api/v4/search?" + params, headers={"User-Agent": "CivilEngineeringAI/1.0"})
                 with urllib.request.urlopen(req, timeout=10) as response:
                     data = json.loads(response.read().decode("utf-8"))
                 result[kind] = [{"title": a.get("title"), "url": a.get("url"), "source": (a.get("source") or {}).get("name"), "publishedAt": a.get("publishedAt")} for a in data.get("articles", [])]
-            except Exception:
-                result[kind] = []
-    else:
-        result["news_message"] = "Add GNEWS_API_KEY in Render for live global news and project headlines."
+            if not result[kind]:
+                rss_query = urllib.parse.quote(query)
+                rss_url = "https://news.google.com/rss/search?q=" + rss_query + "&hl=en&gl=US&ceid=US:en"
+                req = urllib.request.Request(rss_url, headers={"User-Agent": "CivilEngineeringAI/1.0"})
+                with urllib.request.urlopen(req, timeout=12) as response:
+                    raw = response.read()
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(raw)
+                result[kind] = [{"title": item.findtext("title") or "Untitled", "url": item.findtext("link") or "", "source": item.findtext("source") or "Google News", "publishedAt": item.findtext("pubDate") or ""} for item in root.findall("./channel/item")[:limit]]
+        except Exception:
+            result[kind] = []
     try:
         search = urllib.parse.quote("civil engineering OR construction OR infrastructure OR structural engineering OR low carbon concrete OR construction robotics OR digital twin")
         url = f"https://api.openalex.org/works?search={search}&filter=from_publication_date:2026-01-01&sort=publication_date:desc&per-page={limit}&select=id,title,doi,publication_date,primary_location,authorships"
@@ -180,6 +207,18 @@ def global_updates(limit: int = 8):
     except Exception:
         result["research_message"] = "Research feed temporarily unavailable."
     return result
+
+
+@router.get("/diagnostics")
+def diagnostics():
+    """Safe deployment diagnostics; never returns secret values."""
+    return {
+        "status": "ok",
+        "gemini_configured": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
+        "gnews_configured": bool(os.getenv("GNEWS_API_KEY")),
+        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        "python": __import__("sys").version.split()[0],
+    }
 
 from .platform import research_roadmap, project_blueprint
 from .knowledge import KNOWLEDGE_MODULES
