@@ -77,6 +77,8 @@ async function startMixed(){
   const by={technical:{a:0,c:0},reasoning:{a:0,c:0},gk:{a:0,c:0}};
   completed.forEach(a=>{by[a.section].a++;if(a.is_correct)by[a.section].c++;});
   const weak=Object.entries(by).map(([k,v])=>({k,acc:v.a?v.c/v.a*100:0})).sort((a,b)=>a.acc-b.acc);
+  const workspaceId=localStorage.getItem("civilAIStudentId");
+  if(workspaceId){fetch("/api/workspace/mock-history",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({student_id:workspaceId,exam:"SSC JE 2026 Paper-I",score,accuracy,attempted:completed.length,total:qs.length})}).catch(()=>{});}
   area.innerHTML=`<div class="result"><h3>${auto?"⏰ Time Up — ":""}SSC JE Paper-I Complete 🎯</h3>
    <div class="result-grid"><div><span>Score</span><b>${score.toFixed(2)}/${qs.length}</b></div><div><span>Correct</span><b>${correct}</b></div><div><span>Wrong</span><b>${wrong}</b></div><div><span>Attempted</span><b>${completed.length}/${qs.length}</b></div><div><span>Accuracy</span><b>${accuracy.toFixed(1)}%</b></div><div><span>Negative marks</span><b>-${(wrong*.25).toFixed(2)}</b></div></div>
    <h4>Section analysis</h4>${Object.entries(by).map(([k,v])=>`<p><b>${sectionName(k)}</b>: ${v.c}/${v.a} correct — ${v.a?(v.c/v.a*100).toFixed(1):"0.0"}%</p>`).join("")}
