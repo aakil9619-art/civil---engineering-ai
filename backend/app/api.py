@@ -183,6 +183,20 @@ def global_updates(limit: int = 8):
 
 from .platform import research_roadmap, project_blueprint
 from .knowledge import KNOWLEDGE_MODULES
+from .test_catalog import TEST_CATEGORIES, list_tests, get_test
+
+@router.get("/tests/categories")
+def test_categories():
+    return {"categories": TEST_CATEGORIES, "total_tests": sum(len(list_tests(c)) for c in TEST_CATEGORIES)}
+
+@router.get("/tests")
+def tests(category: str = "", test_type: str = ""):
+    return {"category": category or "All", "test_type": test_type or "All", "tests": list_tests(category, test_type)}
+
+@router.get("/tests/detail")
+def test_detail(category: str, name: str):
+    item = get_test(category, name)
+    return item if item else {"error": "Test not found", "available_categories": TEST_CATEGORIES}
 
 @router.get("/platform/modules")
 def platform_modules():
