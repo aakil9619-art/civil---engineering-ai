@@ -12,6 +12,38 @@ def llm_status():
     }
 
 
+def generate_question_set(exam: str, subject: str, topic: str, difficulty: str, question_type: str, count: int) -> list[dict]:
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+    from google import genai
+    import json
+    client = genai.Client(api_key=api_key)
+    prompt = f"""You are Civil Engineering AI creating an original exam question bank.
+Exam: {exam}
+Subject: {subject}
+Topic: {topic or "choose a high-value topic"}
+Difficulty: {difficulty}
+Question type: {question_type}
+Create exactly {count} distinct questions.
+Target Indian Civil Engineering exams. Mix calculations and conceptual reasoning when appropriate.
+Never copy known PYQs verbatim. Do not invent standards, citations, or factual claims.
+Return ONLY valid JSON with a questions array. Each item must contain question, four options, answer, solution, formula, concept, common_trap, exam_tip, subject, topic, difficulty and question_type."""
+    response = client.models.generate_content(model=MODEL, contents=prompt)
+    raw = (getattr(response, "text", "") or "").strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+        raw = raw.rsplit("```", 1)[0].strip()
+    try:
+        data = json.loads(raw)
+    except Exception as exc:
+        raise RuntimeError("Gemini returned invalid question JSON") from exc
+    questions = data.get("questions")
+    if not isinstance(questions, list) or len(questions) != count:
+        raise RuntimeError("Gemini returned an incomplete question set")
+    return questions
+
+
 def build_civil_prompt(exam, subject, topic, difficulty, question_type):
     return f"""Create an original {exam} Civil Engineering question.
 Subject: {subject}; Topic: {topic}; Difficulty: {difficulty}; Type: {question_type}.
