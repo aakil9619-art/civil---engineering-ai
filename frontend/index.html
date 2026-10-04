@@ -20,4 +20,9 @@
     const r=document.createElement('span'); r.className='click-ripple'; r.style.left=e.clientX+'px'; r.style.top=e.clientY+'px'; document.body.appendChild(r); setTimeout(()=>r.remove(),500);
   },{passive:true});
 })();
-</script></body></html>
+<script>
+document.querySelectorAll('.hero-actions [data-mode]').forEach(btn=>btn.addEventListener('click',()=>{
+  const card=document.querySelector('.card[data-mode="'+btn.dataset.mode+'"]');
+  if(card){card.click();document.querySelector('.panel')?.scrollIntoView({behavior:'smooth',block:'start'});}
+}));
+</script></script></body></html>
