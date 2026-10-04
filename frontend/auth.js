@@ -8,7 +8,7 @@ const CivilAuth={
     firebase.initializeApp(this.config);
     firebase.auth().onAuthStateChanged(async u=>{
       this.user=u;
-      if(u){box.innerHTML='<span class="user-phone">📱 '+(u.phoneNumber||'Student')+'</span><button class="login-btn" id="logoutBtn">Logout</button>';document.querySelector('#logoutBtn').onclick=()=>firebase.auth().signOut();window.dispatchEvent(new Event('civil-auth-ready'));}
+      if(u){box.innerHTML='<span class="user-phone">📱 '+(u.phoneNumber||'Student')+'</span><button class="login-btn" id="logoutBtn">Logout</button>';document.querySelector('#logoutBtn').onclick=()=>firebase.auth().signOut();window.dispatchEvent(new Event('civil-auth-ready'));setTimeout(()=>{if(typeof renderStudentDashboard==="function"&&CivilAuth.user)renderStudentDashboard();},0);}
       else{box.innerHTML='<button class="login-btn" id="loginBtn">📱 Login with OTP</button>';document.querySelector('#loginBtn').onclick=()=>this.open();}
     });
   },
