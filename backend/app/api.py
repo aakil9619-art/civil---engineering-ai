@@ -144,3 +144,39 @@ def news(limit: int = 12):
         return {"configured": True, "source": "GNews", "articles": articles}
     except Exception:
         return {"configured": True, "source": "GNews", "articles": [], "error": "News feed temporarily unavailable."}
+
+@router.get("/global-updates")
+def global_updates(limit: int = 8):
+    """Global engineering news + recent research + major project updates."""
+    limit = min(max(limit, 1), 8)
+    result = {"news": [], "research": [], "projects": [], "sources": ["GNews", "OpenAlex"]}
+    key = os.getenv("GNEWS_API_KEY", "").strip()
+    queries = {
+        "news": "engineering invention innovation construction infrastructure technology robotics materials energy water transport",
+        "projects": "major infrastructure project megaproject bridge tunnel railway metro airport dam construction project",
+    }
+    if key:
+        for kind, query in queries.items():
+            try:
+                params = urllib.parse.urlencode({"q": query, "lang": "en", "max": limit, "apikey": key})
+                req = urllib.request.Request("https://gnews.io/api/v4/search?" + params, headers={"User-Agent": "CivilEngineeringAI/1.0"})
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+                result[kind] = [{"title": a.get("title"), "url": a.get("url"), "source": (a.get("source") or {}).get("name"), "publishedAt": a.get("publishedAt")} for a in data.get("articles", [])]
+            except Exception:
+                result[kind] = []
+    else:
+        result["news_message"] = "Add GNEWS_API_KEY in Render for live global news and project headlines."
+    try:
+        search = urllib.parse.quote("civil engineering OR construction OR infrastructure OR structural engineering OR low carbon concrete OR construction robotics OR digital twin")
+        url = f"https://api.openalex.org/works?search={search}&filter=from_publication_date:2026-01-01&sort=publication_date:desc&per-page={limit}&select=id,title,doi,publication_date,primary_location,authorships"
+        req = urllib.request.Request(url, headers={"User-Agent": "CivilEngineeringAI/1.0"})
+        with urllib.request.urlopen(req, timeout=12) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        for w in data.get("results", []):
+            loc = w.get("primary_location") or {}
+            source = (loc.get("source") or {}).get("display_name") if isinstance(loc.get("source"), dict) else None
+            result["research"].append({"title": w.get("title"), "url": w.get("doi") or w.get("id"), "source": source or "OpenAlex", "publishedAt": w.get("publication_date")})
+    except Exception:
+        result["research_message"] = "Research feed temporarily unavailable."
+    return result
