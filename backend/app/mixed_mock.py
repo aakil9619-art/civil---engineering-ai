@@ -36,6 +36,12 @@ def _technical_pool():
         RL=100+i*0.25; BS=1.1+(i%5)*0.2; FS=1.4+(i%6)*0.15; nxt=RL+BS-FS
         opts=[f"{nxt:.3f} m",f"{RL+BS+FS:.3f} m",f"{RL-BS+FS:.3f} m",f"{nxt+1:.3f} m"]
         pool.append({"section":"technical","subject":"Survey","topic":"Levelling","difficulty":"moderate","question":f"At a benchmark RL={RL:.3f} m, BS={BS:.2f} m and FS={FS:.2f} m are observed. The RL of the next point is:","options":opts,"answer":opts[0],"solution":f"HI=RL+BS={RL+BS:.3f} m; next RL=HI−FS={nxt:.3f} m.","formula":"HI=RL+BS; RL=HI−FS","concept":"Height of instrument method.","common_trap":"Adding the foresight.","exam_tip":"Subtract FS from HI."})
+    for i in range(1,21):
+        V=2+i*0.2; z1=5+i%4; z2=2+i%3; p1=120+i*3
+        h1=p1/9.81+V*V/(2*9.81)+z1
+        v2=max(0.5,(2*9.81*(h1-z2-p1/9.81))**0.5)
+        opts=[f"{v2:.2f} m/s",f"{v2+1:.2f} m/s",f"{max(.1,v2-1):.2f} m/s",f"{v2*2:.2f} m/s"]
+        pool.append({"section":"technical","subject":"Fluid Mechanics","topic":"Bernoulli equation","difficulty":"moderate","question_type":"numerical","question":f"For ideal steady flow, pressure is {p1} kPa at point 1, V₁={V:.1f} m/s and z₁={z1} m. At point 2, pressure is the same and z₂={z2} m. The approximate V₂ is:","options":opts,"answer":opts[0],"solution":"Apply Bernoulli's equation between the two points and solve for V₂.","formula":"p/γ + V²/(2g) + z = constant","concept":"Bernoulli equation conserves mechanical energy for ideal steady flow.","common_trap":"Forgetting elevation head.","exam_tip":"Write all three head terms before substitution."})
     return pool
 
 def _reasoning_pool(n):
@@ -57,7 +63,8 @@ def _reasoning_pool(n):
         else:
             pairs=[("Beam","Bending","Column","Buckling"),("Slab","Flexure","Footing","Bearing"),("Canal","Flow","Road","Traffic"),("Dam","Reservoir","Bridge","Span")]
             a,b,c,d=pairs[(i-1)%len(pairs)]; q=f"{a} : {b} :: {c} : ?"; opts=[d,"Seepage","Filtration","Torsion"]; ans=d; sol=f"The same engineering association is {c} : {d}."
-        q = q + f" [Set {i}]"\n        out.append({"section":"reasoning","subject":"Reasoning","topic":topic,"difficulty":"moderate","question_type":"conceptual","question":q,"options":opts,"answer":ans,"solution":sol,"formula":"—","concept":"Identify the transformation or relationship.","common_trap":"Applying the wrong pattern.","exam_tip":"Check the relationship before selecting an option."})
+        q = q + f" [Set {i}]"
+        out.append({"section":"reasoning","subject":"Reasoning","topic":topic,"difficulty":"moderate","question_type":"conceptual","question":q,"options":opts,"answer":ans,"solution":sol,"formula":"—","concept":"Identify the transformation or relationship.","common_trap":"Applying the wrong pattern.","exam_tip":"Check the relationship before selecting an option."})
     return out
 
 def _gk_pool(n):
