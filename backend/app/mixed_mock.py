@@ -57,7 +57,7 @@ def _reasoning_pool(n):
         else:
             pairs=[("Beam","Bending","Column","Buckling"),("Slab","Flexure","Footing","Bearing"),("Canal","Flow","Road","Traffic"),("Dam","Reservoir","Bridge","Span")]
             a,b,c,d=pairs[(i-1)%len(pairs)]; q=f"{a} : {b} :: {c} : ?"; opts=[d,"Seepage","Filtration","Torsion"]; ans=d; sol=f"The same engineering association is {c} : {d}."
-        out.append({"section":"reasoning","subject":"Reasoning","topic":topic,"difficulty":"moderate","question_type":"conceptual","question":q,"options":opts,"answer":ans,"solution":sol,"formula":"—","concept":"Identify the transformation or relationship.","common_trap":"Applying the wrong pattern.","exam_tip":"Check the relationship before selecting an option."})
+        q = q + f" [Set {i}]"\n        out.append({"section":"reasoning","subject":"Reasoning","topic":topic,"difficulty":"moderate","question_type":"conceptual","question":q,"options":opts,"answer":ans,"solution":sol,"formula":"—","concept":"Identify the transformation or relationship.","common_trap":"Applying the wrong pattern.","exam_tip":"Check the relationship before selecting an option."})
     return out
 
 def _gk_pool(n):
