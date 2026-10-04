@@ -180,3 +180,18 @@ def global_updates(limit: int = 8):
     except Exception:
         result["research_message"] = "Research feed temporarily unavailable."
     return result
+
+from .platform import research_roadmap, project_blueprint
+from .knowledge import KNOWLEDGE_MODULES
+
+@router.get("/platform/modules")
+def platform_modules():
+    return {"modules": KNOWLEDGE_MODULES}
+
+@router.get("/research/roadmap")
+def research_path(topic: str, level: str = "B.Tech", budget: str = "Low", duration: str = "4 months"):
+    return research_roadmap(topic, level, budget, duration)
+
+@router.get("/projects/blueprint")
+def project_path(title: str, level: str = "B.Tech", budget: str = "Low", duration: str = "4 months"):
+    return project_blueprint(title, level, budget, duration)
