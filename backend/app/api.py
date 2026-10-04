@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Header
 from pydantic import BaseModel, Field
 from .subjects import SUBJECTS
 from .question_engine import build_blueprint
@@ -9,6 +9,7 @@ from .mock_config import get_mock_config
 from .performance import performance_profile
 from .diagram_engine import diagram_blueprint
 from .llm import llm_status, build_civil_prompt, generate_tutor_answer, generate_tutor_image_answer
+from .auth import verify_bearer, public_config
 from .mock_engine import calculate_result
 from .mixed_mock import build_mixed_mock
 import os, json, urllib.parse, urllib.request
@@ -355,11 +356,22 @@ class MockHistoryRequest(BaseModel):
     attempted: int
     total: int
 
+@router.get("/auth/config")
+def auth_config():
+    return public_config()
+
+@router.get("/auth/me")
+def auth_me(authorization: str = Header(default="")):
+    user=verify_bearer(authorization)
+    uid=user["uid"]
+    sid=uid
+    ensure_student(sid, user.get("name",""), "", uid)
+    return {"uid":uid,"phone":user.get("phone_number",""),"name":user.get("name",""),"student_id":sid}
+
 @router.post("/workspace/student")
-def workspace_student(req: StudentRequest):
-    if req.student_id:
-        return update_student(req.student_id, req.name, req.goal) if (req.name or req.goal) else student(req.student_id)
-    sid = ensure_student(None, req.name, req.goal)
+def workspace_student(req: StudentRequest, authorization: str = Header(default="")):
+    user=verify_bearer(authorization); sid=user["uid"]
+    ensure_student(sid, req.name or user.get("name",""), req.goal, sid, user.get("phone_number",""))
     return student(sid)
 
 @router.get("/workspace")
@@ -367,21 +379,21 @@ def workspace(student_id: str):
     return list_workspace(student_id)
 
 @router.post("/workspace/projects")
-def workspace_project(req: ProjectSaveRequest):
-    return add_project(req.student_id, req.title, req.level, req.status, req.data)
+def workspace_project(req: ProjectSaveRequest, authorization: str = Header(default="")):
+    user=verify_bearer(authorization); return add_project(user["uid"], req.title, req.level, req.status, req.data)
 
 @router.post("/workspace/research")
-def workspace_research(req: ResearchSaveRequest):
-    return add_research(req.student_id, req.topic, req.status, req.data)
+def workspace_research(req: ResearchSaveRequest, authorization: str = Header(default="")):
+    user=verify_bearer(authorization); return add_research(user["uid"], req.topic, req.status, req.data)
 
 @router.post("/workspace/bookmarks")
-def workspace_bookmark(req: BookmarkRequest):
-    return add_bookmark(req.student_id, req.title, req.url, req.kind)
+def workspace_bookmark(req: BookmarkRequest, authorization: str = Header(default="")):
+    user=verify_bearer(authorization); return add_bookmark(user["uid"], req.title, req.url, req.kind)
 
 @router.post("/workspace/progress")
-def workspace_progress(req: ProgressRequest):
-    return set_progress(req.student_id, req.key, req.value, req.meta)
+def workspace_progress(req: ProgressRequest, authorization: str = Header(default="")):
+    user=verify_bearer(authorization); return set_progress(user["uid"], req.key, req.value, req.meta)
 
 @router.post("/workspace/mock-history")
-def workspace_mock(req: MockHistoryRequest):
-    return add_mock(req.student_id, req.exam, req.score, req.accuracy, req.attempted, req.total)
+def workspace_mock(req: MockHistoryRequest, authorization: str = Header(default="")):
+    user=verify_bearer(authorization); return add_mock(user["uid"], req.exam, req.score, req.accuracy, req.attempted, req.total)
