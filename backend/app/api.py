@@ -11,6 +11,7 @@ from .diagram_engine import diagram_blueprint
 from .llm import llm_status, build_civil_prompt, generate_tutor_answer, generate_tutor_image_answer
 from .mock_engine import calculate_result
 from .mixed_mock import build_mixed_mock
+import os, json, urllib.parse, urllib.request
 
 router = APIRouter(prefix="/api")
 
@@ -56,18 +57,10 @@ def chat(req: TutorRequest):
     except RuntimeError as exc:
         return {"error": str(exc), "mode": "configuration_error"}
     except Exception:
-        return {
-            "error": "The AI service could not answer right now. Check your Gemini API key and try again.",
-            "mode": "provider_error",
-        }
+        return {"error": "The AI service could not answer right now. Check your Gemini API key and try again.", "mode": "provider_error"}
 
 @router.post("/chat/image")
-async def chat_image(
-    subject: str,
-    topic: str = "",
-    question: str = "",
-    image: UploadFile = File(...),
-):
+async def chat_image(subject: str, topic: str = "", question: str = "", image: UploadFile = File(...)):
     if subject not in SUBJECTS:
         return {"error": "Unknown subject", "subjects": SUBJECTS}
     if not image.content_type or not image.content_type.startswith("image/"):
@@ -82,7 +75,6 @@ async def chat_image(
         return {"error": str(exc), "mode": "configuration_error"}
     except Exception:
         return {"error": "The AI service could not analyze this image right now.", "mode": "provider_error"}
-
 
 @router.post("/questions/generate")
 def generate(req: QuestionRequest):
@@ -127,7 +119,6 @@ def ai_status():
 def ai_prompt(exam: str, subject: str, topic: str, difficulty: str="moderate", question_type: str="numerical"):
     return {"prompt": build_civil_prompt(exam, subject, topic, difficulty, question_type)}
 
-
 @router.get("/mock/questions")
 def mixed_mock_questions(exam: str = "SSC JE 2026", technical: int = 100, reasoning: int = 50, gk: int = 50):
     if exam != "SSC JE 2026":
@@ -136,3 +127,20 @@ def mixed_mock_questions(exam: str = "SSC JE 2026", technical: int = 100, reason
         return {"error": "Use Technical 1-100, Reasoning 1-50 and GK 1-50."}
     questions = build_mixed_mock(technical, reasoning, gk)
     return {"exam": exam, "questions": questions, "negative_marking": 0.25, "duration_minutes": 120}
+
+@router.get("/news")
+def news(limit: int = 12):
+    """Civil-engineering news feed. Uses GNews when GNEWS_API_KEY is configured."""
+    key = os.getenv("GNEWS_API_KEY", "").strip()
+    if not key:
+        return {"configured": False, "source": "GNews", "articles": [], "message": "Add GNEWS_API_KEY in Render Environment Variables."}
+    query = "civil engineering OR infrastructure OR highway OR bridge OR railway OR dam OR irrigation OR construction OR environment OR earthquake"
+    params = urllib.parse.urlencode({"q": query, "lang": "en", "country": "in", "max": min(max(limit, 1), 10), "apikey": key})
+    try:
+        req = urllib.request.Request("https://gnews.io/api/v4/search?" + params, headers={"User-Agent": "CivilEngineeringAI/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        articles = [{"title": a.get("title"), "url": a.get("url"), "source": (a.get("source") or {}).get("name"), "publishedAt": a.get("publishedAt")} for a in data.get("articles", [])]
+        return {"configured": True, "source": "GNews", "articles": articles}
+    except Exception:
+        return {"configured": True, "source": "GNews", "articles": [], "error": "News feed temporarily unavailable."}
