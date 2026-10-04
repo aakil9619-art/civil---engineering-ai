@@ -195,3 +195,74 @@ def research_path(topic: str, level: str = "B.Tech", budget: str = "Low", durati
 @router.get("/projects/blueprint")
 def project_path(title: str, level: str = "B.Tech", budget: str = "Low", duration: str = "4 months"):
     return project_blueprint(title, level, budget, duration)
+
+from .workspace import student, update_student, list_workspace, add_project, add_research, add_bookmark, set_progress, add_mock, ensure_student
+
+class StudentRequest(BaseModel):
+    student_id: str | None = None
+    name: str = ""
+    goal: str = ""
+
+class ProjectSaveRequest(BaseModel):
+    student_id: str
+    title: str
+    level: str = "B.Tech"
+    status: str = "idea"
+    data: dict = Field(default_factory=dict)
+
+class ResearchSaveRequest(BaseModel):
+    student_id: str
+    topic: str
+    status: str = "exploring"
+    data: dict = Field(default_factory=dict)
+
+class BookmarkRequest(BaseModel):
+    student_id: str
+    title: str
+    url: str = ""
+    kind: str = "resource"
+
+class ProgressRequest(BaseModel):
+    student_id: str
+    key: str
+    value: float
+    meta: dict = Field(default_factory=dict)
+
+class MockHistoryRequest(BaseModel):
+    student_id: str
+    exam: str
+    score: float
+    accuracy: float
+    attempted: int
+    total: int
+
+@router.post("/workspace/student")
+def workspace_student(req: StudentRequest):
+    if req.student_id:
+        return update_student(req.student_id, req.name, req.goal) if (req.name or req.goal) else student(req.student_id)
+    sid = ensure_student(None, req.name, req.goal)
+    return student(sid)
+
+@router.get("/workspace")
+def workspace(student_id: str):
+    return list_workspace(student_id)
+
+@router.post("/workspace/projects")
+def workspace_project(req: ProjectSaveRequest):
+    return add_project(req.student_id, req.title, req.level, req.status, req.data)
+
+@router.post("/workspace/research")
+def workspace_research(req: ResearchSaveRequest):
+    return add_research(req.student_id, req.topic, req.status, req.data)
+
+@router.post("/workspace/bookmarks")
+def workspace_bookmark(req: BookmarkRequest):
+    return add_bookmark(req.student_id, req.title, req.url, req.kind)
+
+@router.post("/workspace/progress")
+def workspace_progress(req: ProgressRequest):
+    return set_progress(req.student_id, req.key, req.value, req.meta)
+
+@router.post("/workspace/mock-history")
+def workspace_mock(req: MockHistoryRequest):
+    return add_mock(req.student_id, req.exam, req.score, req.accuracy, req.attempted, req.total)
