@@ -1,5 +1,5 @@
 import json, os
-from functools import lru_cache
+from fastapi import HTTPException
 import firebase_admin
 from firebase_admin import credentials, auth
 
@@ -14,12 +14,15 @@ def _init():
 
 def verify_bearer(authorization: str):
     if not authorization or not authorization.lower().startswith("bearer "):
-        raise RuntimeError("Authentication required.")
+        raise HTTPException(status_code=401, detail="Authentication required.")
     _init()
     token=authorization.split(" ",1)[1].strip()
     if not token:
         raise RuntimeError("Authentication required.")
-    return auth.verify_id_token(token)
+    try:
+        return auth.verify_id_token(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
 
 def public_config():
     return {
